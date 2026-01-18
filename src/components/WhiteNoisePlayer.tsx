@@ -102,7 +102,8 @@ class NoiseGenerator {
     const buffer = this.audioContext.createBuffer(1, 44100 * 2, 44100)
     const noiseData = this.generateNoise(type)
 
-    buffer.copyToChannel(noiseData as Float32Array, 0)
+    const channelData = buffer.getChannelData(0)
+    channelData.set(noiseData)
 
     // Crear nodos
     this.source = this.audioContext.createBufferSource()
