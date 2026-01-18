@@ -18,7 +18,7 @@ export type NoiseType = 'white' | 'pink' | 'brown' | 'blue' | 'violet' | 'grey' 
 export type TimerPhase = 'work' | 'break' | 'longBreak' | 'idle'
 
 function App() {
-  const { theme } = useTheme()
+  useTheme() // Initialize theme system
   const [settings, setSettings] = useState<SettingsConfig>({
     workDuration: 25,
     breakDuration: 5,

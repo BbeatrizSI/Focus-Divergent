@@ -88,7 +88,7 @@ class TestNoiseGenerator {
         noiseData[i] = prev
       }
     }
-    buffer.copyToChannel(noiseData, 0)
+    buffer.copyToChannel(noiseData as Float32Array, 0)
 
     this.source = this.audioContext.createBufferSource()
     this.gainNode = this.audioContext.createGain()

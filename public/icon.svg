@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <!-- Gradiente suave para el fondo -->
+    <linearGradient id="bgGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#f0f9f4;stop-opacity:1" />
+      <stop offset="50%" style="stop-color:#bce5d0;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#8fcfb3;stop-opacity:1" />
+    </linearGradient>
+    
+    <!-- Gradiente para las ondas -->
+    <linearGradient id="waveGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#5bb093;stop-opacity:1" />
+      <stop offset="50%" style="stop-color:#3a9377;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#204d42;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  
+  <!-- Fondo suave con gradiente -->
+  <rect width="512" height="512" rx="120" fill="url(#bgGradient)"/>
+  
+  <!-- Pista de audio estilo DAW - forma rellena simétrica arriba y abajo -->
+  <path d="M 60 256 
+           L 80 200 L 100 280 L 120 240 L 140 300 L 160 220 L 180 260 
+           L 200 230 L 220 290 L 240 250 L 260 310 L 280 240 L 300 270 
+           L 320 225 L 340 295 L 360 250 L 380 285 L 400 235 L 420 275 
+           L 452 256
+           L 420 275 L 400 235 L 380 285 L 360 250 L 340 295 L 320 225 
+           L 300 270 L 280 240 L 260 310 L 240 250 L 220 290 L 200 230 
+           L 180 260 L 160 220 L 140 300 L 120 240 L 100 280 L 80 200 
+           L 60 256 Z" 
+        fill="url(#waveGradient)" opacity="0.85"/>
+  
+  <!-- Línea central sutil (como en DAW) -->
+  <line x1="60" y1="256" x2="452" y2="256" 
+        stroke="url(#bgGradient)" stroke-width="6" opacity="0.4"/>
+</svg>
