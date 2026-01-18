@@ -119,4 +119,4 @@ git push origin main
 
 ## 🎉 ¡Listo!
 
-Una vez completados estos pasos, tu aplicación estará disponible en GitHub Pages y funcionará como una PWA instalable.
+Una vez completados estos pasos, tu aplicación estará disponible en GitHub Pages y funcionará como una PWA instalable
