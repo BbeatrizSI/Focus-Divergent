@@ -3,13 +3,15 @@ import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 
 // https://vitejs.dev/config/
+const base = process.env.NODE_ENV === 'production' ? '/Focus-Divergent/' : '/'
+
 export default defineConfig({
-  base: process.env.NODE_ENV === 'production' ? '/Focus-Divergent/' : '/',
+  base: base,
   plugins: [
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['icon.svg'],
+      includeAssets: ['icon.svg', 'pwa-192x192.png', 'pwa-512x512.png'],
       manifest: {
         name: 'Focus Divergent',
         short_name: 'Focus Divergent',
@@ -18,29 +20,31 @@ export default defineConfig({
         background_color: '#f0f9f4',
         display: 'standalone',
         orientation: 'portrait',
-        scope: process.env.NODE_ENV === 'production' ? '/Focus-Divergent/' : '/',
-        start_url: process.env.NODE_ENV === 'production' ? '/Focus-Divergent/' : '/',
+        scope: base,
+        start_url: base,
         icons: [
           {
-            src: 'pwa-192x192.png',
+            src: `${base}pwa-192x192.png`,
             sizes: '192x192',
-            type: 'image/png'
+            type: 'image/png',
+            purpose: 'any'
           },
           {
-            src: 'pwa-512x512.png',
-            sizes: '512x512',
-            type: 'image/png'
-          },
-          {
-            src: 'pwa-512x512.png',
+            src: `${base}pwa-512x512.png`,
             sizes: '512x512',
             type: 'image/png',
-            purpose: 'any maskable'
+            purpose: 'any'
+          },
+          {
+            src: `${base}pwa-512x512.png`,
+            sizes: '512x512',
+            type: 'image/png',
+            purpose: 'maskable'
           }
         ]
       },
       workbox: {
-        globPatterns: ['**/*.{js,css,html,svg,woff2}'],
+        globPatterns: ['**/*.{js,css,html,svg,png,woff2}'],
         runtimeCaching: [
           {
             urlPattern: /^https:\/\/fonts\.googleapis\.com/,
