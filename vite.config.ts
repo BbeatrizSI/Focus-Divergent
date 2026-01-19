@@ -11,7 +11,7 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['icon.svg', 'pwa-192x192.png', 'pwa-512x512.png'],
+      includeAssets: ['icon.svg', 'icons/pwa-192x192.png', 'icons/pwa-512x512.png'],
       manifest: {
         name: 'Focus Divergent',
         short_name: 'Focus Divergent',
@@ -24,19 +24,19 @@ export default defineConfig({
         start_url: base,
         icons: [
           {
-            src: `${base}pwa-192x192.png`,
+            src: `${base}icons/pwa-192x192.png`,
             sizes: '192x192',
             type: 'image/png',
             purpose: 'any'
           },
           {
-            src: `${base}pwa-512x512.png`,
+            src: `${base}icons/pwa-512x512.png`,
             sizes: '512x512',
             type: 'image/png',
             purpose: 'any'
           },
           {
-            src: `${base}pwa-512x512.png`,
+            src: `${base}icons/pwa-512x512.png`,
             sizes: '512x512',
             type: 'image/png',
             purpose: 'maskable'
