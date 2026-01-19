@@ -336,12 +336,12 @@ export default function Settings({
               <label htmlFor="work-noise" className="text-base font-medium text-calm-800 dark:text-peaceful-100">
                 Tipo de ruido en la concentración
               </label>
-              <div className="flex gap-2 items-center w-full">
+              <div className="flex gap-2 items-center">
                 <select
                   id="work-noise"
                   value={workNoise}
                   onChange={(e) => onWorkNoiseChange(e.target.value as NoiseType)}
-                  className="flex-0 px-0 py-2 border-2 border-calm-200 dark:border-peaceful-600 rounded-lg text-base text-calm-800 dark:text-peaceful-100 bg-white dark:bg-peaceful-700 focus:outline-none focus:border-calm-500 dark:focus:border-peaceful-400 focus:ring-4 focus:ring-calm-500/10 dark:focus:ring-peaceful-400/10 transition-colors duration-200"
+                  className="flex-1 max-w-[85%] px-3 py-2 border-2 border-calm-200 dark:border-peaceful-600 rounded-lg text-base text-calm-800 dark:text-peaceful-100 bg-white dark:bg-peaceful-700 focus:outline-none focus:border-calm-500 dark:focus:border-peaceful-400 focus:ring-4 focus:ring-calm-500/10 dark:focus:ring-peaceful-400/10 transition-colors duration-200"
                 >
                   {noiseTypes.map((type) => (
                     <option key={type.value} value={type.value}>
@@ -378,7 +378,7 @@ export default function Settings({
                   id="break-noise"
                   value={breakNoise}
                   onChange={(e) => onBreakNoiseChange(e.target.value as NoiseType)}
-                  className="flex-1 px-0 py-2 border-2 border-calm-200 dark:border-peaceful-600 rounded-lg text-base text-calm-800 dark:text-peaceful-100 bg-white dark:bg-peaceful-700 focus:outline-none focus:border-calm-500 dark:focus:border-peaceful-400 focus:ring-4 focus:ring-calm-500/10 dark:focus:ring-peaceful-400/10 transition-colors duration-200"
+                  className="flex-1 max-w-[85%] px-3 py-2 border-2 border-calm-200 dark:border-peaceful-600 rounded-lg text-base text-calm-800 dark:text-peaceful-100 bg-white dark:bg-peaceful-700 focus:outline-none focus:border-calm-500 dark:focus:border-peaceful-400 focus:ring-4 focus:ring-calm-500/10 dark:focus:ring-peaceful-400/10 transition-colors duration-200"
                 >
                   {noiseTypes.map((type) => (
                     <option key={type.value} value={type.value}>
