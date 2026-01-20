@@ -39,7 +39,7 @@ export default defineConfig({
         name: 'Focus Divergent',
         short_name: 'Focus Divergent',
         description: 'Temporizador Pomodoro con ruido blanco configurable para personas neurodivergentes',
-        theme_color: '#3a9377',
+        theme_color: '#2a6b5f',
         background_color: '#f0f9f4',
         display: 'standalone',
         orientation: 'portrait',

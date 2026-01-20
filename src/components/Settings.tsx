@@ -152,12 +152,52 @@ export default function Settings({
 }: SettingsProps) {
   const [testingWorkNoise, setTestingWorkNoise] = useState(false)
   const [testingBreakNoise, setTestingBreakNoise] = useState(false)
+  const [workDurationInput, setWorkDurationInput] = useState(settings.workDuration.toString())
+  const [breakDurationInput, setBreakDurationInput] = useState(settings.breakDuration.toString())
+  const [longBreakDurationInput, setLongBreakDurationInput] = useState(settings.longBreakDuration.toString())
+
+  // Sincronizar inputs cuando cambian los settings desde fuera
+  useEffect(() => {
+    setWorkDurationInput(settings.workDuration.toString())
+  }, [settings.workDuration])
+
+  useEffect(() => {
+    setBreakDurationInput(settings.breakDuration.toString())
+  }, [settings.breakDuration])
+
+  useEffect(() => {
+    setLongBreakDurationInput(settings.longBreakDuration.toString())
+  }, [settings.longBreakDuration])
 
   const updateSetting = <K extends keyof SettingsConfig>(
     key: K,
     value: SettingsConfig[K]
   ) => {
     onSettingsChange({ ...settings, [key]: value })
+  }
+
+  const handleWorkDurationChange = (value: string) => {
+    setWorkDurationInput(value)
+    const numValue = parseInt(value)
+    if (!isNaN(numValue) && numValue >= 1 && numValue <= 120) {
+      updateSetting('workDuration', numValue)
+    }
+  }
+
+  const handleBreakDurationChange = (value: string) => {
+    setBreakDurationInput(value)
+    const numValue = parseInt(value)
+    if (!isNaN(numValue) && numValue >= 1 && numValue <= 60) {
+      updateSetting('breakDuration', numValue)
+    }
+  }
+
+  const handleLongBreakDurationChange = (value: string) => {
+    setLongBreakDurationInput(value)
+    const numValue = parseInt(value)
+    if (!isNaN(numValue) && numValue >= 1 && numValue <= 60) {
+      updateSetting('longBreakDuration', numValue)
+    }
   }
 
   const toggleWorkNoiseTest = async () => {
@@ -243,10 +283,14 @@ export default function Settings({
                 type="number"
                 min="1"
                 max="120"
-                value={settings.workDuration}
-                onChange={(e) =>
-                  updateSetting('workDuration', parseInt(e.target.value) || 25)
-                }
+                value={workDurationInput}
+                onChange={(e) => handleWorkDurationChange(e.target.value)}
+                onBlur={(e) => {
+                  const numValue = parseInt(e.target.value)
+                  if (isNaN(numValue) || numValue < 1) {
+                    setWorkDurationInput(settings.workDuration.toString())
+                  }
+                }}
                 className="px-3 py-2 w-16 border-2 border-calm-200 dark:border-peaceful-600 rounded-lg text-base text-center text-calm-800 dark:text-peaceful-100 bg-white dark:bg-peaceful-700 focus:outline-none focus:border-calm-500 dark:focus:border-peaceful-400 focus:ring-4 focus:ring-calm-500/10 dark:focus:ring-peaceful-400/10 transition-colors duration-200"
               />
             </div>
@@ -260,10 +304,14 @@ export default function Settings({
                 type="number"
                 min="1"
                 max="60"
-                value={settings.breakDuration}
-                onChange={(e) =>
-                  updateSetting('breakDuration', parseInt(e.target.value) || 5)
-                }
+                value={breakDurationInput}
+                onChange={(e) => handleBreakDurationChange(e.target.value)}
+                onBlur={(e) => {
+                  const numValue = parseInt(e.target.value)
+                  if (isNaN(numValue) || numValue < 1) {
+                    setBreakDurationInput(settings.breakDuration.toString())
+                  }
+                }}
                 className="px-3 py-2 w-16 border-2 border-calm-200 dark:border-peaceful-600 rounded-lg text-center text-base text-calm-800 dark:text-peaceful-100 bg-white dark:bg-peaceful-700 focus:outline-none focus:border-calm-500 dark:focus:border-peaceful-400 focus:ring-4 focus:ring-calm-500/10 dark:focus:ring-peaceful-400/10 transition-colors duration-200"
               />
             </div>
@@ -277,13 +325,14 @@ export default function Settings({
                 type="number"
                 min="1"
                 max="60"
-                value={settings.longBreakDuration}
-                onChange={(e) =>
-                  updateSetting(
-                    'longBreakDuration',
-                    parseInt(e.target.value) || 15
-                  )
-                }
+                value={longBreakDurationInput}
+                onChange={(e) => handleLongBreakDurationChange(e.target.value)}
+                onBlur={(e) => {
+                  const numValue = parseInt(e.target.value)
+                  if (isNaN(numValue) || numValue < 1) {
+                    setLongBreakDurationInput(settings.longBreakDuration.toString())
+                  }
+                }}
                 className="px-3 py-2 w-16 border-2 border-calm-200 dark:border-peaceful-600 rounded-lg text-base text-calm-800 dark:text-peaceful-100 bg-white text-center dark:bg-peaceful-700 focus:outline-none focus:border-calm-500 dark:focus:border-peaceful-400 focus:ring-4 focus:ring-calm-500/10 dark:focus:ring-peaceful-400/10 transition-colors duration-200"
               />
             </div>

@@ -179,21 +179,33 @@ const noiseGenerator = new NoiseGenerator()
 export default function WhiteNoisePlayer({ noiseType, isActive }: WhiteNoisePlayerProps) {
   const isPlayingRef = useRef(false)
   const currentNoiseRef = useRef<NoiseType>('none')
+  const wasActiveRef = useRef(false)
 
   useEffect(() => {
     if (noiseType === 'none') {
       noiseGenerator.stop()
       isPlayingRef.current = false
+      currentNoiseRef.current = 'none'
+      wasActiveRef.current = false
       return
     }
 
-    if (isActive && noiseType !== currentNoiseRef.current) {
-      noiseGenerator.play(noiseType, 0.2).catch(console.error)
-      isPlayingRef.current = true
-      currentNoiseRef.current = noiseType
-    } else if (!isActive) {
-      noiseGenerator.stop()
-      isPlayingRef.current = false
+    // Si se activa y no estaba activo antes, o si cambia el tipo de ruido
+    if (isActive) {
+      if (!wasActiveRef.current || noiseType !== currentNoiseRef.current) {
+        noiseGenerator.stop()
+        noiseGenerator.play(noiseType, 0.2).catch(console.error)
+        isPlayingRef.current = true
+        currentNoiseRef.current = noiseType
+      }
+      wasActiveRef.current = true
+    } else {
+      // Si se desactiva, detener el ruido
+      if (wasActiveRef.current) {
+        noiseGenerator.stop()
+        isPlayingRef.current = false
+        wasActiveRef.current = false
+      }
     }
   }, [noiseType, isActive])
 
