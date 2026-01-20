@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import PomodoroTimer, { TimerState } from './components/PomodoroTimer'
 import WhiteNoisePlayer from './components/WhiteNoisePlayer'
 import Settings from './components/Settings'
@@ -19,18 +19,34 @@ export type TimerPhase = 'work' | 'break' | 'longBreak' | 'idle'
 
 function App() {
   useTheme() // Initialize theme system
-  const [settings, setSettings] = useState<SettingsConfig>({
-    workDuration: 25,
-    breakDuration: 5,
-    longBreakDuration: 15,
-    autoStartBreaks: false,
-    autoStartPomodoros: false,
+  const [settings, setSettings] = useState<SettingsConfig>(() => {
+    const saved = localStorage.getItem('pomodoroSettings')
+    if (saved) {
+      try {
+        return JSON.parse(saved)
+      } catch {
+        // Si hay error, usar defaults
+      }
+    }
+    return {
+      workDuration: 25,
+      breakDuration: 5,
+      longBreakDuration: 15,
+      autoStartBreaks: false,
+      autoStartPomodoros: false,
+    }
   })
 
   const [currentPhase, setCurrentPhase] = useState<TimerPhase>('idle')
   const [timerState, setTimerState] = useState<TimerState>('idle')
-  const [workNoise, setWorkNoise] = useState<NoiseType>('none')
-  const [breakNoise, setBreakNoise] = useState<NoiseType>('none')
+  const [workNoise, setWorkNoise] = useState<NoiseType>(() => {
+    const saved = localStorage.getItem('workNoise')
+    return (saved as NoiseType) || 'brown'
+  })
+  const [breakNoise, setBreakNoise] = useState<NoiseType>(() => {
+    const saved = localStorage.getItem('breakNoise')
+    return (saved as NoiseType) || 'none'
+  })
   const [showSettings, setShowSettings] = useState(false)
 
   const currentNoise = currentPhase === 'idle' 
@@ -41,6 +57,19 @@ function App() {
 
   // El ruido blanco solo debe estar activo cuando el temporizador está corriendo
   const isTimerRunning = timerState === 'running'
+
+  // Persistir configuraciones
+  useEffect(() => {
+    localStorage.setItem('pomodoroSettings', JSON.stringify(settings))
+  }, [settings])
+
+  useEffect(() => {
+    localStorage.setItem('workNoise', workNoise)
+  }, [workNoise])
+
+  useEffect(() => {
+    localStorage.setItem('breakNoise', breakNoise)
+  }, [breakNoise])
 
   return (
     <div className="min-h-screen flex flex-col bg-gradient-to-br from-calm-50 via-calm-100 to-calm-200 dark:from-peaceful-900 dark:via-peaceful-800 dark:to-peaceful-900">
