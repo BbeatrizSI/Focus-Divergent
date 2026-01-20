@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react'
-import { NoiseType } from '../App'
+import { NoiseType } from '../types'
 import { HiSpeakerWave } from 'react-icons/hi2'
 
 interface WhiteNoisePlayerProps {

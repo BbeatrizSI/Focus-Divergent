@@ -5,18 +5,7 @@ import Settings from './components/Settings'
 import ThemeToggle from './components/ThemeToggle'
 import { useTheme } from './hooks/useTheme'
 import { HiOutlineCog6Tooth } from 'react-icons/hi2'
-
-export interface SettingsConfig {
-  workDuration: number // en minutos
-  breakDuration: number // en minutos
-  longBreakDuration: number // en minutos
-  cyclesBeforeLongBreak: number // número de ciclos antes del descanso largo
-  autoStartBreaks: boolean
-  autoStartPomodoros: boolean
-}
-
-export type NoiseType = 'white' | 'pink' | 'brown' | 'blue' | 'violet' | 'grey' | 'green' | 'red' | 'none'
-export type TimerPhase = 'work' | 'break' | 'longBreak' | 'idle'
+import { SettingsConfig, NoiseType, TimerPhase } from './types'
 
 function App() {
   useTheme() // Initialize theme system

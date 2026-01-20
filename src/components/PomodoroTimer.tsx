@@ -1,8 +1,10 @@
-import { useState, useEffect, useRef, useCallback } from 'react'
-import { SettingsConfig, TimerPhase } from '../App'
-import { HiPause, HiPlay, HiArrowPath } from 'react-icons/hi2'
+import { SettingsConfig, TimerPhase, TimerState } from '../types'
+import { usePomodoroTimer } from '../hooks/usePomodoroTimer'
+import TimerCircle from './TimerCircle'
+import TimerControls from './TimerControls'
+import PomodoroProgressGuide from './PomodoroProgressGuide'
 
-export type TimerState = 'idle' | 'running' | 'paused'
+export type { TimerState }
 
 interface PomodoroTimerProps {
   settings: SettingsConfig
@@ -10,451 +12,51 @@ interface PomodoroTimerProps {
   onStateChange: (state: TimerState) => void
 }
 
-interface SavedTimerState {
-  phase: TimerPhase
-  state: TimerState
-  timeLeft: number
-  completedPomodoros: number
-  startTime?: number
+const getPhaseLabel = (phase: TimerPhase): string => {
+  switch (phase) {
+    case 'work':
+      return 'Concentración'
+    case 'break':
+      return 'Descanso Corto'
+    case 'longBreak':
+      return 'Descanso Largo'
+    default:
+      return 'Listo para empezar'
+  }
 }
 
 export default function PomodoroTimer({ settings, onPhaseChange, onStateChange }: PomodoroTimerProps) {
-  // Cargar estado persistido
-  const loadPersistedState = (): SavedTimerState | null => {
-    const saved = localStorage.getItem('pomodoroTimerState')
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved)
-        // Verificar que el estado no sea muy antiguo (más de 24 horas)
-        if (parsed.startTime && Date.now() - parsed.startTime < 24 * 60 * 60 * 1000) {
-          // Validar que completedPomodoros sea un número válido
-          if (typeof parsed.completedPomodoros === 'number' && parsed.completedPomodoros >= 0) {
-            return parsed
-          } else {
-            // Si completedPomodoros es inválido, limpiar el estado
-            localStorage.removeItem('pomodoroTimerState')
-            return null
-          }
-        }
-      } catch {
-        // Si hay error, ignorar
-      }
-    }
-    return null
-  }
-
-  const persistedState = loadPersistedState()
-  const [phase, setPhase] = useState<TimerPhase>(persistedState?.phase || 'idle')
-  const [state, setState] = useState<TimerState>(persistedState?.state || 'idle')
-  const [timeLeft, setTimeLeft] = useState(() => {
-    if (persistedState && persistedState.state === 'running' && persistedState.startTime) {
-      // Calcular tiempo restante basado en cuando se guardó
-      const elapsed = Math.floor((Date.now() - persistedState.startTime) / 1000)
-      const remaining = persistedState.timeLeft - elapsed
-      return Math.max(0, remaining)
-    }
-    return persistedState?.timeLeft || settings.workDuration * 60
-  })
-  const [completedPomodoros, setCompletedPomodoros] = useState(() => {
-    // Asegurar que completedPomodoros siempre sea un número válido
-    const saved = persistedState?.completedPomodoros
-    return (typeof saved === 'number' && saved >= 0) ? saved : 0
-  })
-  const intervalRef = useRef<number | null>(null)
-  const startTimeRef = useRef<number | null>(null)
-
-  const handleTimerComplete = useCallback(() => {
-    if (intervalRef.current) {
-      clearInterval(intervalRef.current)
-      intervalRef.current = null
-    }
-    startTimeRef.current = null
-
-    if (phase === 'work') {
-      // Asegurar que completedPomodoros sea un número válido antes de incrementar
-      const currentCompleted = typeof completedPomodoros === 'number' && completedPomodoros >= 0 ? completedPomodoros : 0
-      const newCompleted = currentCompleted + 1
-      setCompletedPomodoros(newCompleted)
-      
-      // Cada N ciclos (configurable), descanso largo
-      // Después del trabajo 1, 2, 3... N-1: descanso corto
-      // Después del trabajo N: descanso largo
-      const cyclesBeforeLongBreak = settings.cyclesBeforeLongBreak ?? 4
-      // El descanso largo ocurre después de completar el trabajo N, N*2, N*3, etc.
-      // Ejemplo con N=4: después de trabajo 4, 8, 12... → descanso largo
-      const nextPhase: TimerPhase = (newCompleted % cyclesBeforeLongBreak === 0) ? 'longBreak' : 'break'
-      const nextDuration = nextPhase === 'longBreak' 
-        ? settings.longBreakDuration 
-        : settings.breakDuration
-
-      setPhase(nextPhase)
-      setTimeLeft(nextDuration * 60)
-      setState('paused') // Pausado para que el usuario decida cuándo empezar
-
-      if (nextPhase === 'break' && settings.autoStartBreaks) {
-        setTimeout(() => startTimer(), 500)
-      }
-    } else {
-      // Descanso completado, volver a trabajo
-      setPhase('work')
-      setTimeLeft(settings.workDuration * 60)
-      setState('paused')
-
-      if (settings.autoStartPomodoros) {
-        setTimeout(() => startTimer(), 500)
-      }
-    }
-  }, [phase, completedPomodoros, settings])
-
-  const startTimer = useCallback(() => {
-    if (state === 'running') return
-
-    setState('running')
-    if (phase === 'idle') {
-      setPhase('work')
-      setTimeLeft(settings.workDuration * 60)
-    }
-
-    const totalDuration = phase === 'work' 
-      ? settings.workDuration * 60 
-      : phase === 'longBreak' 
-        ? settings.longBreakDuration * 60 
-        : settings.breakDuration * 60
-    
-    startTimeRef.current = Date.now() - ((totalDuration - timeLeft) * 1000)
-
-    intervalRef.current = window.setInterval(() => {
-      setTimeLeft((prev) => {
-        if (prev <= 1) {
-          // Timer completado
-          handleTimerComplete()
-          return 0
-        }
-        return prev - 1
-      })
-    }, 1000)
-  }, [state, phase, settings, timeLeft, handleTimerComplete])
-
-  const pauseTimer = useCallback(() => {
-    if (intervalRef.current) {
-      clearInterval(intervalRef.current)
-      intervalRef.current = null
-    }
-    startTimeRef.current = null
-    setState('paused')
-  }, [])
-
-  const resetTimer = useCallback(() => {
-    if (intervalRef.current) {
-      clearInterval(intervalRef.current)
-      intervalRef.current = null
-    }
-    startTimeRef.current = null
-    setState('idle')
-    setPhase('idle')
-    setTimeLeft(settings.workDuration * 60)
-    setCompletedPomodoros(0)
-    localStorage.removeItem('pomodoroTimerState')
-  }, [settings])
-
-  // Actualizar tiempo cuando cambian los settings
-  useEffect(() => {
-    if (state === 'idle') {
-      setTimeLeft(settings.workDuration * 60)
-    }
-  }, [settings.workDuration, state])
-
-  // Notificar cambios de fase al componente padre
-  useEffect(() => {
-    onPhaseChange(phase)
-  }, [phase, onPhaseChange])
-
-  // Notificar cambios de estado al componente padre
-  useEffect(() => {
-    onStateChange(state)
-  }, [state, onStateChange])
-
-  // Persistir estado del timer
-  useEffect(() => {
-    const timerState: SavedTimerState = {
-      phase,
-      state,
-      timeLeft,
-      completedPomodoros,
-      startTime: startTimeRef.current || undefined,
-    }
-    localStorage.setItem('pomodoroTimerState', JSON.stringify(timerState))
-  }, [phase, state, timeLeft, completedPomodoros])
-
-  // Si el timer estaba corriendo al cargar, reanudarlo
-  useEffect(() => {
-    if (persistedState && persistedState.state === 'running' && timeLeft > 0) {
-      const totalDuration = persistedState.phase === 'work' 
-        ? settings.workDuration * 60 
-        : persistedState.phase === 'longBreak' 
-          ? settings.longBreakDuration * 60 
-          : settings.breakDuration * 60
-      
-      startTimeRef.current = Date.now() - ((totalDuration - timeLeft) * 1000)
-      intervalRef.current = window.setInterval(() => {
-        setTimeLeft((prev) => {
-          if (prev <= 1) {
-            handleTimerComplete()
-            return 0
-          }
-          return prev - 1
-        })
-      }, 1000)
-      setState('running')
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []) // Solo al montar
-
-  // Limpiar intervalo al desmontar
-  useEffect(() => {
-    return () => {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current)
-      }
-    }
-  }, [])
-
-  const formatTime = (seconds: number): string => {
-    const mins = Math.floor(seconds / 60)
-    const secs = seconds % 60
-    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
-  }
-
-  const getPhaseLabel = (): string => {
-    switch (phase) {
-      case 'work':
-        return 'Concentración'
-      case 'break':
-        return 'Descanso Corto'
-      case 'longBreak':
-        return 'Descanso Largo'
-      default:
-        return 'Listo para empezar'
-    }
-  }
-
-  const progressPercentage = phase === 'idle' 
-    ? 0 
-    : ((timeLeft / (phase === 'work' 
-        ? settings.workDuration * 60 
-        : phase === 'longBreak' 
-          ? settings.longBreakDuration * 60 
-          : settings.breakDuration * 60)) * 100)
-
-  const circumference = 2 * Math.PI * 45
+  const {
+    phase,
+    state,
+    timeLeft,
+    completedPomodoros,
+    startTimer,
+    pauseTimer,
+    resetTimer,
+    progressPercentage,
+  } = usePomodoroTimer(settings, onPhaseChange, onStateChange)
 
   return (
     <div className="flex flex-col items-center gap-4 p-6 bg-white dark:bg-peaceful-800 rounded-3xl shadow-lg w-full max-w-lg transition-colors duration-200">
       <div className="text-lg text-calm-600 dark:text-peaceful-300 font-medium uppercase tracking-wide">
-        {getPhaseLabel()}
+        {getPhaseLabel(phase)}
       </div>
       
-      <div className="w-full flex justify-center items-center">
-        <div className="relative w-64 h-64 md:w-72 md:h-72">
-          <svg className="w-full h-full" viewBox="0 0 100 100">
-            <circle
-              cx="50"
-              cy="50"
-              r="45"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="8"
-              className="text-calm-200 dark:text-peaceful-700"
-            />
-            <path
-              d="M 50 5 A 45 45 0 1 1 49.99 5"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="8"
-              strokeLinecap="round"
-              className="text-calm-500 dark:text-peaceful-400 transition-all duration-300"
-              style={{
-                strokeDasharray: circumference,
-                strokeDashoffset: circumference * (1 - progressPercentage / 100),
-              }}
-            />
-          </svg>
-          <div className="absolute inset-0 flex items-center justify-center">
-            <div className="text-4xl md:text-5xl font-semibold text-calm-800 dark:text-peaceful-100 tabular-nums tracking-wider">
-              {formatTime(timeLeft)}
-            </div>
-          </div>
-        </div>
-      </div>
+      <TimerCircle timeLeft={timeLeft} progressPercentage={progressPercentage} />
 
-      <div className="flex gap-3 flex-wrap justify-center">
-        {state === 'running' ? (
-          <button
-            className="px-4 py-2 rounded-xl font-medium min-w-[120px] transition-all duration-200 shadow-md hover:shadow-lg hover:-translate-y-0.5 active:translate-y-0 bg-amber-500 hover:bg-amber-600 text-white flex items-center justify-center gap-2"
-            onClick={pauseTimer}
-          >
-            <HiPause className="w-5 h-5" />
-            <span>Pausar</span>
-          </button>
-        ) : (
-          <button
-            className="px-4 py-2 rounded-xl font-medium min-w-[120px] transition-all duration-200 shadow-md hover:shadow-lg hover:-translate-y-0.5 active:translate-y-0 bg-calm-500 hover:bg-calm-600 dark:bg-peaceful-500 dark:hover:bg-peaceful-600 text-white flex items-center justify-center gap-2"
-            onClick={startTimer}
-          >
-            <HiPlay className="w-5 h-5" />
-            <span>Iniciar</span>
-          </button>
-        )}
-        <button
-          className="px-4 py-2 rounded-xl font-medium min-w-[120px] transition-all duration-200 shadow-md hover:shadow-lg hover:-translate-y-0.5 active:translate-y-0 bg-calm-100 dark:bg-peaceful-700 hover:bg-calm-200 dark:hover:bg-peaceful-600 text-calm-800 dark:text-peaceful-200 border-2 border-calm-200 dark:border-peaceful-600 flex items-center justify-center gap-2"
-          onClick={resetTimer}
-        >
-          <HiArrowPath className="w-5 h-5" />
-          <span>Reiniciar</span>
-        </button>
-      </div>
+      <TimerControls
+        state={state}
+        onStart={startTimer}
+        onPause={pauseTimer}
+        onReset={resetTimer}
+      />
 
-      {/* Guía visual del progreso del pomodoro */}
-      <PomodoroProgressGuide 
-        completedPomodoros={completedPomodoros} 
+      <PomodoroProgressGuide
+        completedPomodoros={completedPomodoros}
         currentPhase={phase}
         cyclesBeforeLongBreak={settings.cyclesBeforeLongBreak ?? 4}
       />
-    </div>
-  )
-}
-
-// Componente para la guía visual del progreso
-function PomodoroProgressGuide({ 
-  completedPomodoros, 
-  currentPhase,
-  cyclesBeforeLongBreak
-}: { 
-  completedPomodoros: number
-  currentPhase: TimerPhase
-  cyclesBeforeLongBreak: number
-}) {
-  const steps: Array<{ label: string; phase: TimerPhase; cycleNumber: number }> = []
-  
-  // Crear los pasos: Work 1, Break 1, Work 2, Break 2, ..., Work N, Long Break
-  for (let i = 1; i <= cyclesBeforeLongBreak; i++) {
-    steps.push({ label: `Trabajo ${i}`, phase: 'work', cycleNumber: i })
-    if (i < cyclesBeforeLongBreak) {
-      steps.push({ label: `Descanso ${i}`, phase: 'break', cycleNumber: i })
-    } else {
-      steps.push({ label: 'Descanso Largo', phase: 'longBreak', cycleNumber: i })
-    }
-  }
-
-  const getCurrentStepIndex = (): number => {
-    if (currentPhase === 'idle') return -1
-    
-    if (currentPhase === 'longBreak') {
-      // El descanso largo siempre está al final
-      return steps.length - 1
-    }
-    
-    if (currentPhase === 'work') {
-      // Cuando estás trabajando, completedPomodoros es el número de trabajos ya completados
-      // Así que estás en el trabajo (completedPomodoros + 1), que está en el índice completedPomodoros * 2
-      return completedPomodoros * 2
-    }
-    
-    if (currentPhase === 'break') {
-      // Cuando estás en descanso corto, completedPomodoros es el número de trabajos completados
-      // El descanso después del trabajo N está en el índice (N - 1) * 2 + 1
-      // Como completedPomodoros = N, el índice es completedPomodoros * 2 - 1
-      // Pero debemos verificar que no sea el descanso largo
-      if (completedPomodoros > 0 && completedPomodoros % cyclesBeforeLongBreak === 0) {
-        // Si es múltiplo de cyclesBeforeLongBreak, debería ser longBreak, no break
-        // Esto no debería pasar, pero si pasa, devolvemos el índice del descanso largo
-        return steps.length - 1
-      }
-      return completedPomodoros * 2 - 1
-    }
-    
-    return -1
-  }
-
-  const currentStepIndex = getCurrentStepIndex()
-
-  const getPhaseIcon = (phase: TimerPhase) => {
-    if (phase === 'work') return '●'
-    if (phase === 'break') return '○'
-    return '◉' // longBreak
-  }
-
-  const getPhaseColor = (phase: TimerPhase, isCompleted: boolean, isCurrent: boolean) => {
-    if (isCurrent) {
-      if (phase === 'work') return 'text-calm-600 dark:text-peaceful-300'
-      if (phase === 'break') return 'text-calm-500 dark:text-peaceful-400'
-      return 'text-calm-700 dark:text-peaceful-200'
-    }
-    if (isCompleted) {
-      if (phase === 'work') return 'text-calm-400 dark:text-peaceful-500'
-      if (phase === 'break') return 'text-calm-300 dark:text-peaceful-600'
-      return 'text-calm-500 dark:text-peaceful-500'
-    }
-    if (phase === 'work') return 'text-calm-200 dark:text-peaceful-700'
-    if (phase === 'break') return 'text-calm-100 dark:text-peaceful-800'
-    return 'text-calm-200 dark:text-peaceful-700'
-  }
-
-  return (
-    <div className="w-full mt-3 px-2">
-      <div className="flex items-center justify-center gap-1.5 flex-wrap">
-        {steps.map((step, index) => {
-          const isCompleted = index < currentStepIndex
-          const isCurrent = index === currentStepIndex
-
-          return (
-            <div key={index} className="flex items-center flex-shrink-0">
-              <div 
-                className={`flex items-center gap-1 px-2 py-1 rounded-md transition-all duration-200 ${
-                  isCurrent
-                    ? 'bg-calm-100 dark:bg-peaceful-700 ring-2 ring-calm-400 dark:ring-peaceful-400'
-                    : isCompleted
-                    ? 'bg-calm-50 dark:bg-peaceful-800/50'
-                    : 'opacity-60'
-                }`}
-                title={step.label}
-              >
-                <span className={`text-xs font-medium ${getPhaseColor(step.phase, isCompleted, isCurrent)}`}>
-                  {getPhaseIcon(step.phase)}
-                </span>
-                <span className={`text-[10px] font-medium ${getPhaseColor(step.phase, isCompleted, isCurrent)}`}>
-                  {step.phase === 'work' ? step.cycleNumber : step.phase === 'longBreak' ? 'L' : step.cycleNumber}
-                </span>
-              </div>
-              {index < steps.length - 1 && (
-                <div
-                  className={`h-px w-2 transition-all duration-200 ${
-                    isCompleted
-                      ? 'bg-calm-300 dark:bg-peaceful-600'
-                      : 'bg-calm-200 dark:bg-peaceful-700'
-                  }`}
-                />
-              )}
-            </div>
-          )
-        })}
-      </div>
-      <div className="mt-2 text-center">
-        <div className="flex items-center justify-center gap-4 text-[10px] text-calm-500 dark:text-peaceful-500">
-          <div className="flex items-center gap-1">
-            <span className="text-calm-400 dark:text-peaceful-600">●</span>
-            <span>Trabajo</span>
-          </div>
-          <div className="flex items-center gap-1">
-            <span className="text-calm-300 dark:text-peaceful-700">○</span>
-            <span>Descanso</span>
-          </div>
-          <div className="flex items-center gap-1">
-            <span className="text-calm-500 dark:text-peaceful-500">◉</span>
-            <span>Largo</span>
-          </div>
-        </div>
-      </div>
     </div>
   )
 }
