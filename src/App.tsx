@@ -10,6 +10,7 @@ export interface SettingsConfig {
   workDuration: number // en minutos
   breakDuration: number // en minutos
   longBreakDuration: number // en minutos
+  cyclesBeforeLongBreak: number // número de ciclos antes del descanso largo
   autoStartBreaks: boolean
   autoStartPomodoros: boolean
 }
@@ -21,20 +22,32 @@ function App() {
   useTheme() // Initialize theme system
   const [settings, setSettings] = useState<SettingsConfig>(() => {
     const saved = localStorage.getItem('pomodoroSettings')
-    if (saved) {
-      try {
-        return JSON.parse(saved)
-      } catch {
-        // Si hay error, usar defaults
-      }
-    }
-    return {
+    const defaults = {
       workDuration: 25,
       breakDuration: 5,
       longBreakDuration: 15,
-      autoStartBreaks: false,
-      autoStartPomodoros: false,
+      cyclesBeforeLongBreak: 4,
+      autoStartBreaks: true,
+      autoStartPomodoros: true,
     }
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved)
+        // Asegurar que todos los campos existan (para compatibilidad con versiones antiguas)
+        return {
+          ...defaults,
+          ...parsed,
+          cyclesBeforeLongBreak: parsed.cyclesBeforeLongBreak ?? defaults.cyclesBeforeLongBreak,
+          // Asegurar que los valores de autoStart existan (para compatibilidad con versiones antiguas)
+          autoStartBreaks: parsed.autoStartBreaks ?? defaults.autoStartBreaks,
+          autoStartPomodoros: parsed.autoStartPomodoros ?? defaults.autoStartPomodoros,
+        }
+      } catch {
+        // Si hay error, usar defaults
+        return defaults
+      }
+    }
+    return defaults
   })
 
   const [currentPhase, setCurrentPhase] = useState<TimerPhase>('idle')

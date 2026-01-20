@@ -155,6 +155,7 @@ export default function Settings({
   const [workDurationInput, setWorkDurationInput] = useState(settings.workDuration.toString())
   const [breakDurationInput, setBreakDurationInput] = useState(settings.breakDuration.toString())
   const [longBreakDurationInput, setLongBreakDurationInput] = useState(settings.longBreakDuration.toString())
+  const [cyclesInput, setCyclesInput] = useState((settings.cyclesBeforeLongBreak ?? 4).toString())
   const [validationError, setValidationError] = useState<string | null>(null)
 
   // Sincronizar inputs cuando cambian los settings desde fuera
@@ -169,6 +170,10 @@ export default function Settings({
   useEffect(() => {
     setLongBreakDurationInput(settings.longBreakDuration.toString())
   }, [settings.longBreakDuration])
+
+  useEffect(() => {
+    setCyclesInput((settings.cyclesBeforeLongBreak ?? 4).toString())
+  }, [settings.cyclesBeforeLongBreak])
 
   const updateSetting = <K extends keyof SettingsConfig>(
     key: K,
@@ -201,10 +206,19 @@ export default function Settings({
     }
   }
 
+  const handleCyclesChange = (value: string) => {
+    setCyclesInput(value)
+    const numValue = parseInt(value)
+    if (!isNaN(numValue) && numValue >= 1 && numValue <= 10) {
+      updateSetting('cyclesBeforeLongBreak', numValue)
+    }
+  }
+
   const validateAndClose = () => {
     const workVal = parseInt(workDurationInput)
     const breakVal = parseInt(breakDurationInput)
     const longBreakVal = parseInt(longBreakDurationInput)
+    const cyclesVal = parseInt(cyclesInput)
 
     if (isNaN(workVal) || workVal < 1 || workVal > 120) {
       setValidationError('La duración de concentración debe estar entre 1 y 120 minutos')
@@ -216,6 +230,10 @@ export default function Settings({
     }
     if (isNaN(longBreakVal) || longBreakVal < 1 || longBreakVal > 60) {
       setValidationError('La duración de descanso largo debe estar entre 1 y 60 minutos')
+      return
+    }
+    if (isNaN(cyclesVal) || cyclesVal < 1 || cyclesVal > 10) {
+      setValidationError('El número de ciclos debe estar entre 1 y 10')
       return
     }
 
@@ -302,7 +320,7 @@ export default function Settings({
             <h3 className="text-lg font-semibold text-calm-600 dark:text-peaceful-300 mb-1">
               Tiempos
             </h3>
-            <div className="flex flex-row gap-2">
+            <div className="flex flex-row justify-between items-center gap-2">
               <label htmlFor="work-duration" className="text-base font-medium text-calm-800 dark:text-peaceful-100">
                 Duración de concentración (min.)
               </label>
@@ -323,7 +341,7 @@ export default function Settings({
               />
             </div>
 
-            <div className="flex flex-row gap-2">
+            <div className="flex flex-row justify-between items-center gap-2">
               <label htmlFor="break-duration" className="text-base font-medium text-calm-800 dark:text-peaceful-100">
                 Duración de descanso corto (min.)
               </label>
@@ -344,7 +362,7 @@ export default function Settings({
               />
             </div>
 
-            <div className="flex flex-row gap-2">
+            <div className="flex flex-row justify-between items-center gap-2">
               <label htmlFor="long-break-duration" className="text-base font-medium text-calm-800 dark:text-peaceful-100">
                 Duración de descanso largo (min.)
               </label>
@@ -359,6 +377,27 @@ export default function Settings({
                   const numValue = parseInt(e.target.value)
                   if (isNaN(numValue) || numValue < 1) {
                     setLongBreakDurationInput(settings.longBreakDuration.toString())
+                  }
+                }}
+                className="px-3 py-2 w-16 border-2 border-calm-200 dark:border-peaceful-600 rounded-lg text-base text-calm-800 dark:text-peaceful-100 bg-white text-center dark:bg-peaceful-700 focus:outline-none focus:border-calm-500 dark:focus:border-peaceful-400 focus:ring-4 focus:ring-calm-500/10 dark:focus:ring-peaceful-400/10 transition-colors duration-200"
+              />
+            </div>
+
+            <div className="flex flex-row justify-between items-center gap-2">
+              <label htmlFor="cycles-before-long-break" className="text-base font-medium text-calm-800 dark:text-peaceful-100">
+                Ciclos antes del descanso largo
+              </label>
+              <input
+                id="cycles-before-long-break"
+                type="number"
+                min="1"
+                max="10"
+                value={cyclesInput}
+                onChange={(e) => handleCyclesChange(e.target.value)}
+                onBlur={(e) => {
+                  const numValue = parseInt(e.target.value)
+                  if (isNaN(numValue) || numValue < 1) {
+                    setCyclesInput((settings.cyclesBeforeLongBreak ?? 4).toString())
                   }
                 }}
                 className="px-3 py-2 w-16 border-2 border-calm-200 dark:border-peaceful-600 rounded-lg text-base text-calm-800 dark:text-peaceful-100 bg-white text-center dark:bg-peaceful-700 focus:outline-none focus:border-calm-500 dark:focus:border-peaceful-400 focus:ring-4 focus:ring-calm-500/10 dark:focus:ring-peaceful-400/10 transition-colors duration-200"
@@ -413,7 +452,7 @@ export default function Settings({
               <label htmlFor="work-noise" className="text-base font-medium text-calm-800 dark:text-peaceful-100">
                 Tipo de ruido en la concentración
               </label>
-              <div className="flex gap-2 items-center">
+              <div className="flex gap-2 items-center justify-between">
                 <select
                   id="work-noise"
                   value={workNoise}
@@ -450,7 +489,7 @@ export default function Settings({
               <label htmlFor="break-noise" className="text-base font-medium text-calm-800 dark:text-peaceful-100">
                 Tipo de ruido en el descanso
               </label>
-              <div className="flex gap-2 items-center">
+              <div className="flex gap-2 items-center justify-between">
                 <select
                   id="break-noise"
                   value={breakNoise}

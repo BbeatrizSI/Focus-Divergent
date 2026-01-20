@@ -27,7 +27,14 @@ export default function PomodoroTimer({ settings, onPhaseChange, onStateChange }
         const parsed = JSON.parse(saved)
         // Verificar que el estado no sea muy antiguo (más de 24 horas)
         if (parsed.startTime && Date.now() - parsed.startTime < 24 * 60 * 60 * 1000) {
-          return parsed
+          // Validar que completedPomodoros sea un número válido
+          if (typeof parsed.completedPomodoros === 'number' && parsed.completedPomodoros >= 0) {
+            return parsed
+          } else {
+            // Si completedPomodoros es inválido, limpiar el estado
+            localStorage.removeItem('pomodoroTimerState')
+            return null
+          }
         }
       } catch {
         // Si hay error, ignorar
@@ -48,7 +55,11 @@ export default function PomodoroTimer({ settings, onPhaseChange, onStateChange }
     }
     return persistedState?.timeLeft || settings.workDuration * 60
   })
-  const [completedPomodoros, setCompletedPomodoros] = useState(persistedState?.completedPomodoros || 0)
+  const [completedPomodoros, setCompletedPomodoros] = useState(() => {
+    // Asegurar que completedPomodoros siempre sea un número válido
+    const saved = persistedState?.completedPomodoros
+    return (typeof saved === 'number' && saved >= 0) ? saved : 0
+  })
   const intervalRef = useRef<number | null>(null)
   const startTimeRef = useRef<number | null>(null)
 
@@ -60,11 +71,18 @@ export default function PomodoroTimer({ settings, onPhaseChange, onStateChange }
     startTimeRef.current = null
 
     if (phase === 'work') {
-      const newCompleted = completedPomodoros + 1
+      // Asegurar que completedPomodoros sea un número válido antes de incrementar
+      const currentCompleted = typeof completedPomodoros === 'number' && completedPomodoros >= 0 ? completedPomodoros : 0
+      const newCompleted = currentCompleted + 1
       setCompletedPomodoros(newCompleted)
       
-      // Cada 4 pomodoros, descanso largo
-      const nextPhase: TimerPhase = newCompleted % 4 === 0 ? 'longBreak' : 'break'
+      // Cada N ciclos (configurable), descanso largo
+      // Después del trabajo 1, 2, 3... N-1: descanso corto
+      // Después del trabajo N: descanso largo
+      const cyclesBeforeLongBreak = settings.cyclesBeforeLongBreak ?? 4
+      // El descanso largo ocurre después de completar el trabajo N, N*2, N*3, etc.
+      // Ejemplo con N=4: después de trabajo 4, 8, 12... → descanso largo
+      const nextPhase: TimerPhase = (newCompleted % cyclesBeforeLongBreak === 0) ? 'longBreak' : 'break'
       const nextDuration = nextPhase === 'longBreak' 
         ? settings.longBreakDuration 
         : settings.breakDuration
@@ -229,9 +247,6 @@ export default function PomodoroTimer({ settings, onPhaseChange, onStateChange }
           : settings.breakDuration * 60)) * 100)
 
   const circumference = 2 * Math.PI * 45
-  // Para sentido horario: cuando progressPercentage es 100% (tiempo completo), offset es 0 (círculo lleno)
-  // Cuando progressPercentage es 0% (tiempo agotado), offset es circumference (círculo vacío)
-  const strokeDashoffset = circumference * (1 - progressPercentage / 100)
 
   return (
     <div className="flex flex-col items-center gap-4 p-6 bg-white dark:bg-peaceful-800 rounded-3xl shadow-lg w-full max-w-lg transition-colors duration-200">
@@ -241,7 +256,7 @@ export default function PomodoroTimer({ settings, onPhaseChange, onStateChange }
       
       <div className="w-full flex justify-center items-center">
         <div className="relative w-64 h-64 md:w-72 md:h-72">
-          <svg className="w-full h-full transform rotate-90" viewBox="0 0 100 100">
+          <svg className="w-full h-full" viewBox="0 0 100 100">
             <circle
               cx="50"
               cy="50"
@@ -251,10 +266,8 @@ export default function PomodoroTimer({ settings, onPhaseChange, onStateChange }
               strokeWidth="8"
               className="text-calm-200 dark:text-peaceful-700"
             />
-            <circle
-              cx="50"
-              cy="50"
-              r="45"
+            <path
+              d="M 50 5 A 45 45 0 1 1 49.99 5"
               fill="none"
               stroke="currentColor"
               strokeWidth="8"
@@ -262,7 +275,7 @@ export default function PomodoroTimer({ settings, onPhaseChange, onStateChange }
               className="text-calm-500 dark:text-peaceful-400 transition-all duration-300"
               style={{
                 strokeDasharray: circumference,
-                strokeDashoffset: strokeDashoffset,
+                strokeDashoffset: circumference * (1 - progressPercentage / 100),
               }}
             />
           </svg>
@@ -301,14 +314,11 @@ export default function PomodoroTimer({ settings, onPhaseChange, onStateChange }
         </button>
       </div>
 
-      <div className="px-4 py-2 bg-calm-100 dark:bg-peaceful-700 rounded-lg text-sm text-calm-700 dark:text-peaceful-300">
-        Pomodoros completados: {completedPomodoros}
-      </div>
-
       {/* Guía visual del progreso del pomodoro */}
       <PomodoroProgressGuide 
         completedPomodoros={completedPomodoros} 
         currentPhase={phase}
+        cyclesBeforeLongBreak={settings.cyclesBeforeLongBreak ?? 4}
       />
     </div>
   )
@@ -317,70 +327,110 @@ export default function PomodoroTimer({ settings, onPhaseChange, onStateChange }
 // Componente para la guía visual del progreso
 function PomodoroProgressGuide({ 
   completedPomodoros, 
-  currentPhase 
+  currentPhase,
+  cyclesBeforeLongBreak
 }: { 
   completedPomodoros: number
-  currentPhase: TimerPhase 
+  currentPhase: TimerPhase
+  cyclesBeforeLongBreak: number
 }) {
-  const totalCycles = 4
-  const steps: Array<{ label: string; phase: TimerPhase | 'work' }> = []
+  const steps: Array<{ label: string; phase: TimerPhase; cycleNumber: number }> = []
   
-  // Crear los pasos: Work 1, Break 1, Work 2, Break 2, Work 3, Break 3, Work 4, Long Break
-  for (let i = 1; i <= totalCycles; i++) {
-    steps.push({ label: `Trabajo ${i}`, phase: 'work' })
-    if (i < totalCycles) {
-      steps.push({ label: `Descanso ${i}`, phase: 'break' })
+  // Crear los pasos: Work 1, Break 1, Work 2, Break 2, ..., Work N, Long Break
+  for (let i = 1; i <= cyclesBeforeLongBreak; i++) {
+    steps.push({ label: `Trabajo ${i}`, phase: 'work', cycleNumber: i })
+    if (i < cyclesBeforeLongBreak) {
+      steps.push({ label: `Descanso ${i}`, phase: 'break', cycleNumber: i })
     } else {
-      steps.push({ label: 'Descanso Largo', phase: 'longBreak' })
+      steps.push({ label: 'Descanso Largo', phase: 'longBreak', cycleNumber: i })
     }
   }
 
   const getCurrentStepIndex = (): number => {
     if (currentPhase === 'idle') return -1
-    if (currentPhase === 'work') {
-      return completedPomodoros * 2
-    }
-    if (currentPhase === 'break') {
-      return completedPomodoros * 2 + 1
-    }
+    
     if (currentPhase === 'longBreak') {
+      // El descanso largo siempre está al final
       return steps.length - 1
     }
+    
+    if (currentPhase === 'work') {
+      // Cuando estás trabajando, completedPomodoros es el número de trabajos ya completados
+      // Así que estás en el trabajo (completedPomodoros + 1), que está en el índice completedPomodoros * 2
+      return completedPomodoros * 2
+    }
+    
+    if (currentPhase === 'break') {
+      // Cuando estás en descanso corto, completedPomodoros es el número de trabajos completados
+      // El descanso después del trabajo N está en el índice (N - 1) * 2 + 1
+      // Como completedPomodoros = N, el índice es completedPomodoros * 2 - 1
+      // Pero debemos verificar que no sea el descanso largo
+      if (completedPomodoros > 0 && completedPomodoros % cyclesBeforeLongBreak === 0) {
+        // Si es múltiplo de cyclesBeforeLongBreak, debería ser longBreak, no break
+        // Esto no debería pasar, pero si pasa, devolvemos el índice del descanso largo
+        return steps.length - 1
+      }
+      return completedPomodoros * 2 - 1
+    }
+    
     return -1
   }
 
   const currentStepIndex = getCurrentStepIndex()
 
+  const getPhaseIcon = (phase: TimerPhase) => {
+    if (phase === 'work') return '●'
+    if (phase === 'break') return '○'
+    return '◉' // longBreak
+  }
+
+  const getPhaseColor = (phase: TimerPhase, isCompleted: boolean, isCurrent: boolean) => {
+    if (isCurrent) {
+      if (phase === 'work') return 'text-calm-600 dark:text-peaceful-300'
+      if (phase === 'break') return 'text-calm-500 dark:text-peaceful-400'
+      return 'text-calm-700 dark:text-peaceful-200'
+    }
+    if (isCompleted) {
+      if (phase === 'work') return 'text-calm-400 dark:text-peaceful-500'
+      if (phase === 'break') return 'text-calm-300 dark:text-peaceful-600'
+      return 'text-calm-500 dark:text-peaceful-500'
+    }
+    if (phase === 'work') return 'text-calm-200 dark:text-peaceful-700'
+    if (phase === 'break') return 'text-calm-100 dark:text-peaceful-800'
+    return 'text-calm-200 dark:text-peaceful-700'
+  }
+
   return (
-    <div className="w-full mt-4 px-2">
-      <div className="flex items-center gap-1 overflow-x-auto pb-2">
+    <div className="w-full mt-3 px-2">
+      <div className="flex items-center justify-center gap-1.5 flex-wrap">
         {steps.map((step, index) => {
           const isCompleted = index < currentStepIndex
           const isCurrent = index === currentStepIndex
 
           return (
             <div key={index} className="flex items-center flex-shrink-0">
-              <div className="flex flex-col items-center min-w-[60px]">
-                <div
-                  className={`w-3 h-3 rounded-full transition-all duration-200 ${
-                    isCurrent
-                      ? 'bg-calm-500 dark:bg-peaceful-400 ring-4 ring-calm-500/30 dark:ring-peaceful-400/30 scale-125'
-                      : isCompleted
-                      ? 'bg-calm-400 dark:bg-peaceful-500'
-                      : 'bg-calm-200 dark:bg-peaceful-700'
-                  }`}
-                />
-                {isCurrent && (
-                  <span className="text-xs text-calm-600 dark:text-peaceful-300 mt-1 font-medium whitespace-nowrap">
-                    {step.label}
-                  </span>
-                )}
+              <div 
+                className={`flex items-center gap-1 px-2 py-1 rounded-md transition-all duration-200 ${
+                  isCurrent
+                    ? 'bg-calm-100 dark:bg-peaceful-700 ring-2 ring-calm-400 dark:ring-peaceful-400'
+                    : isCompleted
+                    ? 'bg-calm-50 dark:bg-peaceful-800/50'
+                    : 'opacity-60'
+                }`}
+                title={step.label}
+              >
+                <span className={`text-xs font-medium ${getPhaseColor(step.phase, isCompleted, isCurrent)}`}>
+                  {getPhaseIcon(step.phase)}
+                </span>
+                <span className={`text-[10px] font-medium ${getPhaseColor(step.phase, isCompleted, isCurrent)}`}>
+                  {step.phase === 'work' ? step.cycleNumber : step.phase === 'longBreak' ? 'L' : step.cycleNumber}
+                </span>
               </div>
               {index < steps.length - 1 && (
                 <div
-                  className={`h-0.5 w-8 transition-all duration-200 ${
+                  className={`h-px w-2 transition-all duration-200 ${
                     isCompleted
-                      ? 'bg-calm-400 dark:bg-peaceful-500'
+                      ? 'bg-calm-300 dark:bg-peaceful-600'
                       : 'bg-calm-200 dark:bg-peaceful-700'
                   }`}
                 />
@@ -388,6 +438,22 @@ function PomodoroProgressGuide({
             </div>
           )
         })}
+      </div>
+      <div className="mt-2 text-center">
+        <div className="flex items-center justify-center gap-4 text-[10px] text-calm-500 dark:text-peaceful-500">
+          <div className="flex items-center gap-1">
+            <span className="text-calm-400 dark:text-peaceful-600">●</span>
+            <span>Trabajo</span>
+          </div>
+          <div className="flex items-center gap-1">
+            <span className="text-calm-300 dark:text-peaceful-700">○</span>
+            <span>Descanso</span>
+          </div>
+          <div className="flex items-center gap-1">
+            <span className="text-calm-500 dark:text-peaceful-500">◉</span>
+            <span>Largo</span>
+          </div>
+        </div>
       </div>
     </div>
   )
