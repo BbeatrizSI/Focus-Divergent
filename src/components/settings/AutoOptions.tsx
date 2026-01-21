@@ -46,7 +46,7 @@ export default function AutoOptions({ settings, onSettingsChange }: AutoOptionsP
               className="w-5 h-5 cursor-pointer accent-calm-500 dark:accent-peaceful-400"
             />
             <span className="text-base text-[15px] text-calm-800 dark:text-peaceful-100">
-              Iniciar pomodoros automáticamente
+              Iniciar concentración automáticamente
             </span>
           </label>
         </div>

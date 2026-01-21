@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { SettingsConfig, TimerPhase, TimerState, SavedTimerState } from '../types'
+import { playWorkStartSound, playBreakStartSound } from '../utils/phaseSounds'
 
 interface UsePomodoroTimerReturn {
   phase: TimerPhase
@@ -59,6 +60,7 @@ export function usePomodoroTimer(
   })
   const intervalRef = useRef<number | null>(null)
   const startTimeRef = useRef<number | null>(null)
+  const previousPhaseRef = useRef<TimerPhase>(persistedState?.phase || 'idle')
 
   const handleTimerComplete = useCallback(() => {
     if (intervalRef.current) {
@@ -156,9 +158,20 @@ export function usePomodoroTimer(
     }
   }, [settings.workDuration, state])
 
-  // Notificar cambios de fase al componente padre
+  // Notificar cambios de fase al componente padre y reproducir sonidos
   useEffect(() => {
     onPhaseChange(phase)
+    
+    // Reproducir sonido solo cuando cambia de una fase a otra (no al inicializar)
+    if (previousPhaseRef.current !== phase && previousPhaseRef.current !== 'idle') {
+      if (phase === 'work') {
+        playWorkStartSound()
+      } else if (phase === 'break' || phase === 'longBreak') {
+        playBreakStartSound()
+      }
+    }
+    
+    previousPhaseRef.current = phase
   }, [phase, onPhaseChange])
 
   // Notificar cambios de estado al componente padre
